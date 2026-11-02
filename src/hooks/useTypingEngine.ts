@@ -1,7 +1,16 @@
-import { useCallback, useMemo, useReducer } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useReducer, useRef } from 'react'
 import { buildBlocks, type MeasureText, type TextBlock } from '../lib/blocks'
 import { computeStats, type SessionCounters, type TypingStats } from '../lib/stats'
-import { createInitialState, engineReducer, getStatus, type EngineStatus, type KeystrokeError } from '../lib/typingEngine'
+import {
+  createInitialState,
+  describeKeystrokes,
+  engineReducer,
+  getStatus,
+  type EngineAction,
+  type EngineStatus,
+  type KeystrokeError,
+  type KeystrokeFeedback,
+} from '../lib/typingEngine'
 
 export interface TypingEngineOptions {
   /** BCP-47 locale used for word segmentation ('th', 'en', ...). */
@@ -10,6 +19,11 @@ export interface TypingEngineOptions {
   /** Available line width (px when `measure` is given, else characters). */
   maxLineWidth: number
   measure?: MeasureText
+  /**
+   * Called synchronously from the keystroke handler, as soon as the keystroke
+   * has been evaluated and before React re-renders (e.g. to play a sound).
+   */
+  onFeedback?: (feedback: KeystrokeFeedback) => void
 }
 
 export interface TypingEngine {
@@ -36,10 +50,11 @@ export interface TypingEngine {
 
 /**
  * React binding for the pure engine in `lib/typingEngine.ts`. Knows nothing
- * about DOM input or timers — see `useTypingInput` and `useLiveStats`.
+ * about DOM input, timers or audio — see `useTypingInput`, `useLiveStats` and
+ * the `onFeedback` option.
  */
 export function useTypingEngine(text: string, options: TypingEngineOptions): TypingEngine {
-  const { locale, linesPerBlock, maxLineWidth, measure } = options
+  const { locale, linesPerBlock, maxLineWidth, measure, onFeedback } = options
 
   const blocks = useMemo(
     () => buildBlocks(text, { locale, linesPerBlock, maxLineWidth, measure }),
@@ -51,11 +66,36 @@ export function useTypingEngine(text: string, options: TypingEngineOptions): Typ
   // New text/layout → restart (state update during render, no stale frame).
   if (state.blocks !== blocks) dispatch({ type: 'reset', blocks })
 
-  const typeChars = useCallback((chars: readonly string[]) => {
-    if (chars.length > 0) dispatch({ type: 'type', chars, now: Date.now() })
+  // Latest state, readable from event handlers. Synced on every commit, and
+  // advanced optimistically in `apply` so back-to-back events within one frame
+  // also see it. The reducer is pure, so running it here and again inside React
+  // yields the same result.
+  const stateRef = useRef(state)
+  const onFeedbackRef = useRef(onFeedback)
+  useLayoutEffect(() => {
+    stateRef.current = state
+    onFeedbackRef.current = onFeedback
+  })
+
+  const apply = useCallback((action: EngineAction) => {
+    const prev = stateRef.current
+    const next = engineReducer(prev, action)
+    stateRef.current = next
+    dispatch(action)
+    return { prev, next }
   }, [])
-  const backspace = useCallback((word: boolean) => dispatch({ type: 'backspace', word }), [])
-  const reset = useCallback(() => dispatch({ type: 'reset', blocks }), [blocks])
+
+  const typeChars = useCallback(
+    (chars: readonly string[]) => {
+      if (chars.length === 0) return
+      const { prev, next } = apply({ type: 'type', chars, now: Date.now() })
+      // Evaluated outside the reducer (which must stay pure — StrictMode runs it twice).
+      if (next !== prev) onFeedbackRef.current?.(describeKeystrokes(prev, next))
+    },
+    [apply],
+  )
+  const backspace = useCallback((word: boolean) => void apply({ type: 'backspace', word }), [apply])
+  const reset = useCallback(() => void apply({ type: 'reset', blocks }), [apply, blocks])
 
   const { startedAt, finishedAt, correctKeystrokes, totalKeystrokes } = state
   const counters = useMemo<SessionCounters>(

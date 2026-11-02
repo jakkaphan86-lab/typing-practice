@@ -1,5 +1,6 @@
-import { ChartColumn, Gauge, Keyboard, Library, Moon, Sun } from 'lucide-react'
+import { ChartColumn, Gauge, Keyboard, Library, Moon, Sun, Volume2, VolumeX } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
+import { useSoundToggle } from '../../hooks/useTypingSounds'
 import { SAMPLE_TEXTS } from '../../lib/sampleTexts'
 import { LANGUAGES, type Language } from '../../lib/types'
 import { useSettingsStore } from '../../store/useSettingsStore'
@@ -29,6 +30,7 @@ export function Header() {
       openDrawer: s.openDrawer,
     })),
   )
+  const { soundEnabled, toggleSound } = useSoundToggle()
 
   return (
     <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-6 sm:px-6">
@@ -62,6 +64,14 @@ export function Header() {
           preserveFocus
         >
           <Gauge className="size-5" aria-hidden />
+        </IconButton>
+        <IconButton
+          label={soundEnabled ? 'Turn sound off' : 'Turn sound on'}
+          pressed={soundEnabled}
+          onClick={toggleSound}
+          preserveFocus
+        >
+          {soundEnabled ? <Volume2 className="size-5" aria-hidden /> : <VolumeX className="size-5" aria-hidden />}
         </IconButton>
         <IconButton
           label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}

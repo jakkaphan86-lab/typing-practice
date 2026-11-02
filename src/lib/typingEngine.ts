@@ -55,6 +55,29 @@ export function getStatus(state: Pick<EngineState, 'startedAt' | 'finishedAt'>):
   return state.startedAt !== null ? 'running' : 'idle'
 }
 
+/** What a batch of keystrokes produced — drives feedback such as sound effects. */
+export interface KeystrokeFeedback {
+  correct: number
+  incorrect: number
+  /** A static block was completed (including the last one). */
+  blockCompleted: boolean
+  /** The whole session finished. */
+  finished: boolean
+}
+
+/** Compare the state before and after a `type` action. */
+export function describeKeystrokes(prev: EngineState, next: EngineState): KeystrokeFeedback {
+  const typed = next.totalKeystrokes - prev.totalKeystrokes
+  const correct = next.correctKeystrokes - prev.correctKeystrokes
+  const finished = prev.finishedAt === null && next.finishedAt !== null
+  return {
+    correct,
+    incorrect: typed - correct,
+    blockCompleted: finished || next.blockIndex > prev.blockIndex,
+    finished,
+  }
+}
+
 /**
  * Thai tolerance: inside one grapheme cluster, the marks after the base
  * consonant can be typed in either order (e.g. "กิ่" as ก ิ ่ or ก ่ ิ, or

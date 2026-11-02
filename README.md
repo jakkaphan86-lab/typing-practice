@@ -28,12 +28,13 @@ src/
     useLiveStats         the live-stats clock (only the stats bar re-renders on ticks)
     useLineMetrics       pixel-accurate line wrapping (canvas measureText)
     useActiveText, useSessionRecorder, useAnalytics, useCustomTexts, useCustomTextForm,
-    useWeakKeysDrill, useDialog, useAutoDismiss, useApplyTheme
+    useWeakKeysDrill, useTypingSounds, useDialog, useAutoDismiss, useApplyTheme
   store/                 Zustand settings store (persisted)
   lib/                   framework-free domain logic
     typingEngine.ts      pure reducer (keystrokes, Thai mark-order tolerance, pagination)
     blocks.ts, segment.ts  grapheme/word segmentation and static block building
     stats.ts, analytics.ts, drill.ts, drillDictionary.ts, sampleTexts.ts, types.ts
+    audio.ts             procedural Web Audio sound effects (no audio files)
     db.ts                Dexie schema + models; customTexts.ts / sessions.ts: data operations
   utils/                 generic helpers: format, random, dom
 ```
@@ -97,5 +98,20 @@ Database `TypingAppDB`, schema version 2:
 3. The drill is saved to `customTexts` as **"Auto-Generated: Weak Keys Drill"** with tag `generated`.
    Regenerating overwrites that row instead of adding duplicates.
 4. It becomes the `activeTextId`, the drawer closes, and the typing area is focused.
+
+## Sound effects
+
+Toggle with the speaker icon in the header (off by default; the setting persists).
+
+- **Synthesised, not sampled:** `src/lib/audio.ts` builds each sound from oscillators and gain envelopes
+  (Web Audio API). There are no audio files to download or decode.
+  - correct key: ~17 ms bright tap
+  - wrong key: ~66 ms low, muffled thud
+  - block complete: ~0.4 s two-note chime
+- **Triggered in the keystroke handler:** `useTypingEngine` evaluates each keystroke there, by running the pure
+  reducer on its latest state, and calls `onFeedback` before React re-renders (measured median ≈ 0.8 ms from
+  key event to sound). The reducer itself stays pure, so StrictMode's double-invocation can't double sounds.
+- **No re-renders:** `useTypingSounds` reads the setting at call time, so toggling sound doesn't re-render the
+  typing screen. Backspace is silent; typing in the drawer's forms is silent.
 
 Keys: `Esc` restart · `Ctrl/Alt + Backspace` delete word.

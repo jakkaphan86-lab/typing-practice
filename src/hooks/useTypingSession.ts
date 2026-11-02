@@ -5,6 +5,7 @@ import { useLineMetrics } from './useLineMetrics'
 import { useSessionRecorder } from './useSessionRecorder'
 import { useTypingEngine } from './useTypingEngine'
 import { useTypingInput } from './useTypingInput'
+import { useTypingSounds } from './useTypingSounds'
 
 /** Lines shown per static block. */
 export const LINES_PER_BLOCK = 3
@@ -13,7 +14,8 @@ const FALLBACK_CHARS_PER_LINE = 40
 
 /**
  * Everything the typing screen needs, composed in one place: the active text,
- * measured line layout, engine, keystroke capture, session recording and focus.
+ * measured line layout, engine, keystroke capture, sound feedback, session
+ * recording and focus.
  */
 export function useTypingSession() {
   const isDrawerOpen = useSettingsStore((s) => s.drawerTab !== null)
@@ -22,12 +24,14 @@ export function useTypingSession() {
 
   const textRef = useRef<HTMLDivElement>(null)
   const metrics = useLineMetrics(textRef)
+  const playFeedback = useTypingSounds()
 
   const engine = useTypingEngine(activeText?.content ?? '', {
     locale: language,
     linesPerBlock: LINES_PER_BLOCK,
     maxLineWidth: metrics?.maxLineWidth ?? FALLBACK_CHARS_PER_LINE,
     measure: metrics?.measure,
+    onFeedback: playFeedback,
   })
 
   const input = useTypingInput({
