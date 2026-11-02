@@ -1,13 +1,21 @@
 import { RotateCcw } from 'lucide-react'
+import type { SaveStatus } from '../hooks/useSessionRecorder'
 import type { TypingStats } from '../hooks/useTypingEngine'
 import { formatDuration } from '../lib/stats'
 
 interface Props {
   stats: TypingStats
+  saveStatus: SaveStatus | null
   onRestart: () => void
 }
 
-export function ResultCard({ stats, onRestart }: Props) {
+const SAVE_LABEL: Record<SaveStatus, string> = {
+  saving: 'Saving…',
+  saved: 'Saved to history',
+  error: 'Could not save to history',
+}
+
+export function ResultCard({ stats, saveStatus, onRestart }: Props) {
   const items = [
     { label: 'wpm', value: Math.round(stats.wpm) },
     { label: 'accuracy', value: `${Math.floor(stats.accuracy)}%` },
@@ -28,6 +36,9 @@ export function ResultCard({ stats, onRestart }: Props) {
       </dl>
       <p className="text-sm text-slate-400 dark:text-slate-500">
         raw {Math.round(stats.rawWpm)} wpm · {stats.correctKeystrokes}/{stats.totalKeystrokes} keystrokes
+        {saveStatus && (
+          <span className={saveStatus === 'error' ? 'text-red-500' : undefined}> · {SAVE_LABEL[saveStatus]}</span>
+        )}
       </p>
       <button
         type="button"

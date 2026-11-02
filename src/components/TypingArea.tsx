@@ -1,7 +1,8 @@
-import { MousePointerClick } from 'lucide-react'
+import { BookOpen, MousePointerClick } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { SAMPLE_TEXTS } from '../data/sampleTexts'
+import { useActiveText } from '../hooks/useActiveText'
 import { useLineMetrics } from '../hooks/useLineMetrics'
+import { useSessionRecorder } from '../hooks/useSessionRecorder'
 import { useTypingEngine } from '../hooks/useTypingEngine'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { ResultCard } from './ResultCard'
@@ -11,26 +12,34 @@ import { TextBlockView } from './TextBlockView'
 const LINES_PER_BLOCK = 3
 
 export function TypingArea() {
-  const language = useSettingsStore((s) => s.language)
   const showStats = useSettingsStore((s) => s.showStats)
+  const isLibraryOpen = useSettingsStore((s) => s.isLibraryOpen)
+  const setLibraryOpen = useSettingsStore((s) => s.setLibraryOpen)
+  // Selected custom text from Dexie, or the built-in sample as a fallback.
+  const activeText = useActiveText()
+  const language = activeText?.language ?? 'en'
   const textRef = useRef<HTMLDivElement>(null)
   const metrics = useLineMetrics(textRef)
 
-  const engine = useTypingEngine(SAMPLE_TEXTS[language].text, {
+  const engine = useTypingEngine(activeText?.content ?? '', {
     locale: language,
     linesPerBlock: LINES_PER_BLOCK,
     // Character-count fallback until the container has been measured (pre-paint).
     maxLineWidth: metrics?.maxLineWidth ?? 40,
     measure: metrics?.measure,
+    // Let the library drawer's form fields receive keystrokes while it's open.
+    captureGlobalKeys: !isLibraryOpen,
   })
   const { inputRef } = engine
+  const saveStatus = useSessionRecorder(engine, activeText?.id ?? null)
 
   const [focused, setFocused] = useState(false)
 
-  // Focus on mount and whenever the passage changes.
+  // Focus on mount, when the passage changes, and when the library closes.
+  const textKey = activeText?.id
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [language, inputRef])
+    if (!isLibraryOpen) inputRef.current?.focus()
+  }, [textKey, isLibraryOpen, inputRef])
 
   return (
     <section className="w-full max-w-3xl" aria-label="Typing practice">
@@ -56,7 +65,7 @@ export function TypingArea() {
         className="pointer-events-none absolute size-px opacity-0"
       />
 
-      {engine.status === 'finished' && <ResultCard stats={engine.stats} onRestart={engine.reset} />}
+      {engine.status === 'finished' && <ResultCard stats={engine.stats} saveStatus={saveStatus} onRestart={engine.reset} />}
 
       {/* Always mounted (it is the measured element); hidden once finished. */}
       <div
@@ -85,6 +94,21 @@ export function TypingArea() {
           </div>
         )}
       </div>
+
+      {activeText && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setLibraryOpen(true)}
+          title="Choose another text"
+          className="mx-auto mt-10 flex max-w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800/60 dark:hover:text-slate-300"
+        >
+          <BookOpen className="size-4 shrink-0" aria-hidden />
+          <span lang={activeText.language} className="truncate">
+            {activeText.title}
+          </span>
+        </button>
+      )}
     </section>
   )
 }

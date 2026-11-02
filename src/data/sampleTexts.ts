@@ -1,7 +1,9 @@
 import type { Language } from '../store/useSettingsStore'
 
 export interface SampleText {
+  /** Short label for the language switch. */
   label: string
+  title: string
   text: string
 }
 
@@ -9,6 +11,7 @@ export interface SampleText {
 export const SAMPLE_TEXTS: Record<Language, SampleText> = {
   th: {
     label: 'ไทย',
+    title: 'ฝึกพิมพ์สัมผัส (ตัวอย่าง)',
     text: `การฝึกพิมพ์สัมผัสอย่างสม่ำเสมอจะช่วยให้คุณพิมพ์ได้เร็วและแม่นยำมากขึ้น
       เริ่มต้นด้วยการวางนิ้วบนแป้นเหย้าให้ถูกตำแหน่ง แล้วค่อย ๆ เพิ่มความเร็วทีละน้อย
       อย่าก้มมองแป้นพิมพ์ระหว่างพิมพ์ ให้เชื่อมั่นในความจำของกล้ามเนื้อ
@@ -19,6 +22,7 @@ export const SAMPLE_TEXTS: Record<Language, SampleText> = {
   },
   en: {
     label: 'EN',
+    title: 'Touch typing (sample)',
     text: `Touch typing is a skill that rewards patience more than speed. Rest your
       fingers on the home row, keep your eyes on the screen, and let each key find
       its own rhythm. Accuracy comes first, because speed follows naturally once

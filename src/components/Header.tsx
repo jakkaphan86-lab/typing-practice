@@ -1,4 +1,4 @@
-import { Gauge, Keyboard, Moon, Sun } from 'lucide-react'
+import { Gauge, Keyboard, Library, Moon, Sun } from 'lucide-react'
 import type { MouseEvent, ReactNode } from 'react'
 import { SAMPLE_TEXTS } from '../data/sampleTexts'
 import { useSettingsStore, type Language } from '../store/useSettingsStore'
@@ -10,7 +10,18 @@ const buttonBase =
   'inline-flex items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-amber-500'
 
 export function Header() {
-  const { theme, showStats, language, toggleTheme, toggleStats, setLanguage } = useSettingsStore()
+  const {
+    theme,
+    showStats,
+    language,
+    activeTextId,
+    toggleTheme,
+    toggleStats,
+    selectBuiltin,
+    setLibraryOpen,
+  } = useSettingsStore()
+  // The switch picks a built-in sample; with a custom text active, neither is checked.
+  const builtinActive = activeTextId === null
 
   return (
     <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-6 sm:px-6">
@@ -26,11 +37,12 @@ export function Header() {
               key={lang}
               type="button"
               role="radio"
-              aria-checked={language === lang}
+              aria-checked={builtinActive && language === lang}
+              title={SAMPLE_TEXTS[lang].title}
               onMouseDown={keepFocus}
-              onClick={() => setLanguage(lang)}
+              onClick={() => selectBuiltin(lang)}
               className={`${buttonBase} h-8 min-w-11 px-2.5 text-sm ${
-                language === lang
+                builtinActive && language === lang
                   ? 'bg-white text-slate-800 shadow-sm dark:bg-slate-700 dark:text-slate-100'
                   : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
@@ -39,6 +51,10 @@ export function Header() {
             </button>
           ))}
         </div>
+
+        <IconButton label="Text library" onClick={() => setLibraryOpen(true)}>
+          <Library className="size-5" aria-hidden />
+        </IconButton>
 
         <IconButton
           label={showStats ? 'Hide live stats' : 'Show live stats'}

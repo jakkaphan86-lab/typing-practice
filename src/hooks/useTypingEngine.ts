@@ -18,6 +18,13 @@ import { calcAccuracy, calcWpm } from '../lib/stats'
 
 export type EngineStatus = 'idle' | 'running' | 'finished'
 
+/** One wrong keystroke, kept for the error log. */
+export interface KeystrokeError {
+  expected: string
+  typed: string
+  timestamp: number
+}
+
 export interface EngineState {
   blocks: TextBlock[]
   blockIndex: number
@@ -30,6 +37,7 @@ export interface EngineState {
   totalKeystrokes: number
   startedAt: number | null
   finishedAt: number | null
+  errors: KeystrokeError[]
 }
 
 export type EngineAction =
@@ -47,6 +55,7 @@ export function createInitialState(blocks: TextBlock[]): EngineState {
     totalKeystrokes: 0,
     startedAt: null,
     finishedAt: null,
+    errors: [],
   }
 }
 
@@ -77,6 +86,7 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
       let finishedAt: number | null = null
       let typed = state.typed.slice()
       let targetOwned = false
+      const newErrors: KeystrokeError[] = []
 
       for (const ch of action.chars) {
         if (finishedAt !== null) break
@@ -94,6 +104,7 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
         totalKeystrokes++
         if (ch === target[i]) correctKeystrokes++
+        else newErrors.push({ expected: target[i], typed: ch, timestamp: action.now })
         typed.push(ch)
 
         // Block complete → swap in the next static block (or finish).
@@ -109,7 +120,18 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
         }
       }
 
-      return { ...state, blockIndex, target, typed, correctKeystrokes, totalKeystrokes, startedAt, finishedAt }
+      const errors = newErrors.length > 0 ? [...state.errors, ...newErrors] : state.errors
+      return {
+        ...state,
+        blockIndex,
+        target,
+        typed,
+        correctKeystrokes,
+        totalKeystrokes,
+        startedAt,
+        finishedAt,
+        errors,
+      }
     }
 
     case 'backspace': {
@@ -138,6 +160,11 @@ export interface TypingEngineOptions {
   /** Available line width (px when `measure` is given, else characters). */
   maxLineWidth: number
   measure?: (text: string) => number
+  /**
+   * When false, the global key listener is detached (e.g. while a dialog with
+   * its own form fields is open) so keystrokes are not stolen. Default true.
+   */
+  captureGlobalKeys?: boolean
 }
 
 export interface TypingStats {
@@ -154,7 +181,7 @@ export interface TypingStats {
 const TICK_MS = 250
 
 export function useTypingEngine(text: string, options: TypingEngineOptions) {
-  const { locale, linesPerBlock = 3, maxLineWidth, measure } = options
+  const { locale, linesPerBlock = 3, maxLineWidth, measure, captureGlobalKeys = true } = options
 
   const blocks = useMemo(
     () => buildBlocks(text, { locale, linesPerBlock, maxLineWidth, measure }),
@@ -234,6 +261,7 @@ export function useTypingEngine(text: string, options: TypingEngineOptions) {
   // Global listener: Escape restarts; any typing key while the hidden input is
   // unfocused focuses it first, so the keystroke lands in the input.
   useEffect(() => {
+    if (!captureGlobalKeys) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -252,7 +280,7 @@ export function useTypingEngine(text: string, options: TypingEngineOptions) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [reset])
+  }, [reset, captureGlobalKeys])
 
   return {
     block: state.blocks[state.blockIndex] as TextBlock | undefined,
@@ -262,6 +290,10 @@ export function useTypingEngine(text: string, options: TypingEngineOptions) {
     typed: state.typed,
     status,
     stats,
+    /** Wrong keystrokes in this session (for the error log). */
+    errors: state.errors,
+    /** Identifies the session; changes on every new attempt. */
+    startedAt: state.startedAt,
     reset,
     inputRef,
     inputHandlers: { onKeyDown, onInput, onCompositionEnd },

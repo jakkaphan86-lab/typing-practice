@@ -7,10 +7,20 @@ export type Language = 'th' | 'en'
 interface SettingsState {
   theme: Theme
   showStats: boolean
+  /** Language of the built-in sample used when no custom text is active. */
   language: Language
+  /** Selected `customTexts` id, or null → fall back to the built-in sample. */
+  activeTextId: number | null
+  /** UI only (not persisted): the custom text manager drawer. */
+  isLibraryOpen: boolean
+
   toggleTheme: () => void
   toggleStats: () => void
-  setLanguage: (language: Language) => void
+  /** Switch to the built-in sample for `language` (clears any custom text). */
+  selectBuiltin: (language: Language) => void
+  selectCustomText: (id: number) => void
+  clearActiveText: () => void
+  setLibraryOpen: (open: boolean) => void
 }
 
 const systemTheme = (): Theme =>
@@ -24,13 +34,24 @@ export const useSettingsStore = create<SettingsState>()(
       theme: systemTheme(),
       showStats: true,
       language: 'th',
+      activeTextId: null,
+      isLibraryOpen: false,
+
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
       toggleStats: () => set((s) => ({ showStats: !s.showStats })),
-      setLanguage: (language) => set({ language }),
+      selectBuiltin: (language) => set({ language, activeTextId: null }),
+      selectCustomText: (id) => set({ activeTextId: id }),
+      clearActiveText: () => set({ activeTextId: null }),
+      setLibraryOpen: (isLibraryOpen) => set({ isLibraryOpen }),
     }),
     {
       name: 'typing-practice-settings',
-      partialize: ({ theme, showStats, language }) => ({ theme, showStats, language }),
+      partialize: ({ theme, showStats, language, activeTextId }) => ({
+        theme,
+        showStats,
+        language,
+        activeTextId,
+      }),
     },
   ),
 )
