@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect } from 'react'
-import { SAMPLE_TEXTS } from '../data/sampleTexts'
-import { builtinTextId, db, type TextId } from '../lib/db'
-import { useSettingsStore, type Language } from '../store/useSettingsStore'
+import { useEffect, useMemo } from 'react'
+import { builtinTextId, db, type CustomText, type TextId } from '../lib/db'
+import { SAMPLE_TEXTS } from '../lib/sampleTexts'
+import type { Language } from '../lib/types'
+import { useSettingsStore } from '../store/useSettingsStore'
 
 export interface ActiveText {
   id: TextId
@@ -10,6 +11,12 @@ export interface ActiveText {
   language: Language
   content: string
   isCustom: boolean
+}
+
+interface QueryResult {
+  /** The id this result was queried for (see below). */
+  id: number | null
+  text: CustomText | null
 }
 
 /**
@@ -26,17 +33,15 @@ export function useActiveText(): ActiveText | null {
 
   // Tag the result with the id it was queried for: when deps change,
   // useLiveQuery keeps returning the previous result until the new one resolves.
-  const result = useLiveQuery(
-    async () => {
-      if (activeTextId === null) return { id: null, text: null }
-      try {
-        return { id: activeTextId, text: (await db.customTexts.get(activeTextId)) ?? null }
-      } catch {
-        return { id: activeTextId, text: null } // IndexedDB blocked → fallback
-      }
-    },
-    [activeTextId],
-  )
+  const result = useLiveQuery<QueryResult>(async () => {
+    if (activeTextId === null) return { id: null, text: null }
+    try {
+      return { id: activeTextId, text: (await db.customTexts.get(activeTextId)) ?? null }
+    } catch {
+      return { id: activeTextId, text: null } // IndexedDB blocked → fallback
+    }
+  }, [activeTextId])
+
   const settled = result !== undefined && result.id === activeTextId
   const custom = settled ? result.text : null
 
@@ -46,24 +51,15 @@ export function useActiveText(): ActiveText | null {
     if (missing) clearActiveText()
   }, [missing, clearActiveText])
 
-  if (activeTextId !== null && !settled) return null
+  const loading = activeTextId !== null && !settled
 
-  if (custom) {
-    return {
-      id: custom.id,
-      title: custom.title,
-      language: custom.language,
-      content: custom.content,
-      isCustom: true,
+  return useMemo(() => {
+    if (loading) return null
+    if (custom) {
+      const { id, title, language: lang, content } = custom
+      return { id, title, language: lang, content, isCustom: true }
     }
-  }
-
-  const sample = SAMPLE_TEXTS[language]
-  return {
-    id: builtinTextId(language),
-    title: sample.title,
-    language,
-    content: sample.text,
-    isCustom: false,
-  }
+    const sample = SAMPLE_TEXTS[language]
+    return { id: builtinTextId(language), title: sample.title, language, content: sample.text, isCustom: false }
+  }, [loading, custom, language])
 }

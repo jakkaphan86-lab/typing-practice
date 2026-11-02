@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useMemo } from 'react'
 import {
   MissTally,
   rankMissedChars,
@@ -7,6 +8,8 @@ import {
   type MissedChar,
 } from '../lib/analytics'
 import { db } from '../lib/db'
+import type { KeystrokeError } from '../lib/typingEngine'
+import type { SaveState } from './useSessionRecorder'
 
 /** One point on the WPM progress chart. */
 export interface ProgressPoint {
@@ -59,10 +62,30 @@ export function useGlobalStats(weakestLimit = 5): GlobalStats | undefined {
 }
 
 /** Most-missed characters for a single session (by `typingHistory` id). */
-export function useSessionMisses(sessionId: number | null, limit = 3): MissedChar[] | undefined {
+function useSessionMisses(sessionId: number | null, limit: number): MissedChar[] | undefined {
   return useLiveQuery(async () => {
     if (sessionId === null) return []
     const rows = await db.errorLogs.where('sessionId').equals(sessionId).toArray()
     return rankMissedChars(rows, limit)
   }, [sessionId, limit])
+}
+
+/**
+ * Most-missed characters of a just-finished session. Source of truth is the
+ * session's rows in `errorLogs`; if saving failed, the in-memory errors are
+ * used instead. Undefined while the session is still being saved.
+ */
+export function useResultMisses(
+  save: SaveState | null,
+  errors: readonly KeystrokeError[],
+  limit = 3,
+): MissedChar[] | undefined {
+  const stored = useSessionMisses(save?.status === 'saved' ? save.sessionId : null, limit)
+  const fallback = useMemo(
+    () => rankMissedChars(errors.map((e) => ({ expectedChar: e.expected, typedChar: e.typed })), limit),
+    [errors, limit],
+  )
+  if (save?.status === 'saved') return stored
+  if (save?.status === 'error') return fallback
+  return undefined
 }

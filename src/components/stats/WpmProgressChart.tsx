@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import type { ProgressPoint } from '../../hooks/useAnalytics'
 import { useSettingsStore, type Theme } from '../../store/useSettingsStore'
+import { dateTimeFormat, shortDateFormat } from '../../utils/format'
 
 /**
  * SVG attributes can't use Tailwind classes, so the chart picks Tailwind
@@ -29,23 +30,21 @@ function niceTicks(max: number): number[] {
   return Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step)
 }
 
-const shortDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
-const fullDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-
-interface Props {
-  data: ProgressPoint[]
+interface WpmProgressChartProps {
+  data: readonly ProgressPoint[]
   /** Global average WPM, drawn as a dashed reference line. */
   average: number
 }
 
 /** WPM per session over time. X = session (labelled by date), Y = WPM. */
-export default function WpmProgressChart({ data, average }: Props) {
+export default function WpmProgressChart({ data, average }: WpmProgressChartProps) {
   const theme = useSettingsStore((s) => s.theme)
   const c = PALETTE[theme]
   const byDate = new Map(data.map((d) => [d.session, d.timestamp]))
   const yTicks = niceTicks(Math.max(average, ...data.map((d) => d.wpm)))
+  const yMax = yTicks.at(-1) ?? 0
   // Fit the widest tick label (~7px per digit at 11px) so labels never clip.
-  const yAxisWidth = 14 + 7 * String(yTicks.at(-1)).length
+  const yAxisWidth = 14 + 7 * String(yMax).length
 
   return (
     <div
@@ -54,7 +53,7 @@ export default function WpmProgressChart({ data, average }: Props) {
       className="h-44 w-full"
     >
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+        <LineChart data={[...data]} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
           <CartesianGrid stroke={c.grid} strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey="session"
@@ -63,7 +62,7 @@ export default function WpmProgressChart({ data, average }: Props) {
             allowDecimals={false}
             tickFormatter={(s: number) => {
               const t = byDate.get(s)
-              return t ? shortDate.format(t) : ''
+              return t ? shortDateFormat.format(t) : ''
             }}
             tick={{ fill: c.axis, fontSize: 11 }}
             tickLine={false}
@@ -75,7 +74,7 @@ export default function WpmProgressChart({ data, average }: Props) {
             dataKey="wpm"
             allowDecimals={false}
             ticks={yTicks}
-            domain={[0, yTicks.at(-1)!]}
+            domain={[0, yMax]}
             tick={{ fill: c.axis, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
@@ -110,7 +109,7 @@ function ChartTooltip({ active, point }: { active?: boolean; point?: ProgressPoi
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-900">
       <p className="mb-1 text-slate-500 dark:text-slate-400">
-        Session {point.session} · {fullDate.format(point.timestamp)}
+        Session {point.session} · {dateTimeFormat.format(point.timestamp)}
       </p>
       <p className="font-medium text-slate-800 dark:text-slate-100">
         <span className="tabular-nums text-amber-600 dark:text-amber-400">{point.wpm}</span> wpm

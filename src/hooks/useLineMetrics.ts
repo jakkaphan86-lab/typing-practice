@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, type RefObject } from 'react'
+import type { MeasureText } from '../lib/blocks'
 
 /** Keep a little slack for kerning/sub-pixel differences between canvas and DOM. */
 const SAFETY = 0.97
@@ -6,6 +7,25 @@ const SAFETY = 0.97
 interface Metrics {
   width: number
   font: string
+  /** Bumped when web fonts finish loading (glyph widths change, font string doesn't). */
+  fontsVersion: number
+}
+
+export interface LineMetrics {
+  maxLineWidth: number
+  measure: MeasureText
+}
+
+let canvasContext: CanvasRenderingContext2D | null = null
+
+function createCanvasMeasurer(font: string): MeasureText {
+  canvasContext ??= document.createElement('canvas').getContext('2d')
+  const ctx = canvasContext
+  return (text) => {
+    if (!ctx) return text.length // no canvas support: fall back to character count
+    ctx.font = font
+    return ctx.measureText(text).width
+  }
 }
 
 /**
@@ -13,10 +33,10 @@ interface Metrics {
  * canvas-based `measure()` using the element's computed font. This lets the
  * engine pre-wrap lines exactly, so a static block shows exactly N lines with
  * no browser re-wrapping (important for Thai, whose glyph widths vary a lot).
+ * Returns null until the element has been measured.
  */
-export function useLineMetrics(ref: RefObject<HTMLElement | null>) {
+export function useLineMetrics(ref: RefObject<HTMLElement | null>): LineMetrics | null {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
-  const [fontVersion, setFontVersion] = useState(0)
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -27,40 +47,25 @@ export function useLineMetrics(ref: RefObject<HTMLElement | null>) {
       const cs = getComputedStyle(el)
       const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
       const width = Math.floor(el.clientWidth * SAFETY)
-      setMetrics((m) => (m && m.width === width && m.font === font ? m : { width, font }))
+      setMetrics((m) =>
+        m && m.width === width && m.font === font ? m : { width, font, fontsVersion: m?.fontsVersion ?? 0 },
+      )
     }
     update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [ref])
 
-  // Web fonts change glyph widths without changing the font string → re-measure.
   useEffect(() => {
     const fonts = document.fonts
-    if (!fonts) return
-    const bump = () => setFontVersion((v) => v + 1)
+    const bump = () => setMetrics((m) => m && { ...m, fontsVersion: m.fontsVersion + 1 })
     fonts.addEventListener('loadingdone', bump)
     return () => fonts.removeEventListener('loadingdone', bump)
   }, [])
 
-  const font = metrics?.font
-  const measure = useCallback(
-    (text: string) => {
-      const ctx = getContext()
-      ctx.font = font ?? ''
-      return ctx.measureText(text).width
-    },
-    // fontVersion intentionally invalidates the function after fonts load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [font, fontVersion],
+  return useMemo(
+    () => (metrics ? { maxLineWidth: metrics.width, measure: createCanvasMeasurer(metrics.font) } : null),
+    [metrics],
   )
-
-  return metrics ? { maxLineWidth: metrics.width, measure } : null
-}
-
-let ctx: CanvasRenderingContext2D | null = null
-function getContext(): CanvasRenderingContext2D {
-  ctx ??= document.createElement('canvas').getContext('2d')!
-  return ctx
 }

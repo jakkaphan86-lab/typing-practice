@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useAutoDismiss } from '../../hooks/useAutoDismiss'
+import { deleteCustomText } from '../../lib/customTexts'
 import type { CustomText } from '../../lib/db'
 import { useSettingsStore } from '../../store/useSettingsStore'
+import { Toast } from '../ui/Toast'
+import { BuiltinSampleList } from './BuiltinSampleList'
 import { CustomTextForm } from './CustomTextForm'
 import { CustomTextList } from './CustomTextList'
 
 /**
  * "Texts" tab of the drawer: add / edit / delete custom texts and pick the
- * text to practise.
+ * text to practise (custom or built-in).
  */
 export function CustomTextManager() {
   const activeTextId = useSettingsStore((s) => s.activeTextId)
@@ -16,14 +20,20 @@ export function CustomTextManager() {
   const closeDrawer = useSettingsStore((s) => s.closeDrawer)
 
   const [editing, setEditing] = useState<CustomText | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, showNotice] = useAutoDismiss()
   const topRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!notice) return
-    const id = window.setTimeout(() => setNotice(null), 2500)
-    return () => window.clearTimeout(id)
-  }, [notice])
+  const remove = async (text: CustomText) => {
+    try {
+      await deleteCustomText(text.id)
+      if (editing?.id === text.id) setEditing(null)
+      // History is kept; useActiveText falls back to a built-in sample if needed.
+      showNotice('Text deleted.')
+    } catch (err) {
+      console.error('Failed to delete custom text', err)
+      showNotice('Could not delete the text.')
+    }
+  }
 
   return (
     <div ref={topRef} className="flex flex-col gap-8">
@@ -33,41 +43,34 @@ export function CustomTextManager() {
         onCancelEdit={() => setEditing(null)}
         onSaved={(_id, isNew) => {
           setEditing(null)
-          setNotice(isNew ? 'Text saved.' : 'Changes saved.')
+          showNotice(isNew ? 'Text saved.' : 'Changes saved.')
         }}
       />
 
-      <CustomTextList
-        activeTextId={activeTextId}
-        activeBuiltin={activeTextId === null ? language : null}
-        editingId={editing?.id ?? null}
-        onSelect={(t) => {
-          selectCustomText(t.id)
-          closeDrawer()
-        }}
-        onSelectBuiltin={(lang) => {
-          selectBuiltin(lang)
-          closeDrawer()
-        }}
-        onEdit={(t) => {
-          setEditing(t)
-          topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }}
-        onDeleted={(id) => {
-          if (editing?.id === id) setEditing(null)
-          // History is kept; useActiveText falls back to a built-in sample if needed.
-          setNotice('Text deleted.')
-        }}
-      />
+      <div className="flex flex-col gap-6">
+        <CustomTextList
+          activeTextId={activeTextId}
+          editingId={editing?.id ?? null}
+          onSelect={(t) => {
+            selectCustomText(t.id)
+            closeDrawer()
+          }}
+          onEdit={(t) => {
+            setEditing(t)
+            topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+          onDelete={remove}
+        />
+        <BuiltinSampleList
+          active={activeTextId === null ? language : null}
+          onSelect={(lang) => {
+            selectBuiltin(lang)
+            closeDrawer()
+          }}
+        />
+      </div>
 
-      {notice && (
-        <div
-          role="status"
-          className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
-        >
-          {notice}
-        </div>
-      )}
+      {notice && <Toast message={notice} />}
     </div>
   )
 }

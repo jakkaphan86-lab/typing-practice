@@ -1,4 +1,4 @@
-import type { Language } from '../store/useSettingsStore'
+import type { Language } from './types'
 
 export interface SampleText {
   /** Short label for the language switch. */
@@ -7,8 +7,8 @@ export interface SampleText {
   text: string
 }
 
-// Mock passages for the MVP. Long enough to span several static blocks.
-export const SAMPLE_TEXTS: Record<Language, SampleText> = {
+/** Built-in fallback passages, long enough to span several static blocks. */
+export const SAMPLE_TEXTS: Readonly<Record<Language, SampleText>> = {
   th: {
     label: 'ไทย',
     title: 'ฝึกพิมพ์สัมผัส (ตัวอย่าง)',

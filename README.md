@@ -12,24 +12,35 @@ npm run dev
 
 ```
 src/
-  hooks/useTypingEngine.ts   core engine: reducer, keystroke capture, WPM/accuracy
-  hooks/useLineMetrics.ts    measures container width + font for exact line wrapping
-  hooks/useActiveText.ts     selected custom text (live from Dexie) or built-in fallback
-  hooks/useSessionRecorder.ts saves finished sessions to typingHistory + errorLogs
-  hooks/useAnalytics.ts      live global stats + per-session most-missed characters
-  lib/analytics.ts           aggregation (MissTally, summaries) + Thai mark display names
-  lib/drill.ts               adaptive drill generator (weak-key weighted, Thai + English dictionaries)
-  lib/db.ts                  Dexie database 'TypingAppDB' + data helpers
-  lib/segment.ts             grapheme & word segmentation (Intl.Segmenter, Thai-aware)
-  lib/blocks.ts              passage → lines → static blocks (3 lines each)
-  lib/stats.ts               WPM / accuracy math
-  store/useSettingsStore.ts  Zustand (persisted): theme, stats, language, activeTextId
-  components/                Header, TypingArea, TextBlockView, StatsBar, ResultScreen, AppDrawer
-  components/library/        CustomTextManager ("Texts" tab): form + list (select/edit/delete)
-  components/stats/          StatsDashboard ("My stats" tab), WpmProgressChart (lazy-loaded),
-                             PracticeWeakKeysButton, KeyCap
-  data/sampleTexts.ts        mock Thai / English passages
+  components/            presentational React components (PascalCase)
+    layout/              Header, KeyboardHints
+    typing/              TypingArea, TextBlockView, WordView (memoised per word), LiveStatsBar,
+                         TypingBoard, HiddenTypingInput, ActiveTextButton
+    results/             ResultScreen, ResultSummary, MostMissedKeys
+    drawer/              AppDrawer, DrawerTabs
+    library/             CustomTextManager, CustomTextForm, CustomTextList, CustomTextItem, …
+    stats/               StatsDashboard, StatsOverview, WpmProgressSection/Chart (lazy), WeakestKeysSection, …
+    ui/                  shared primitives: IconButton, SegmentedControl, GhostButton, KeyCap, Toast
+  hooks/                 React logic (camelCase, use*)
+    useTypingSession     composes everything the typing screen needs
+    useTypingEngine      React binding for the pure engine
+    useTypingInput       hidden-input + global keyboard capture
+    useLiveStats         the live-stats clock (only the stats bar re-renders on ticks)
+    useLineMetrics       pixel-accurate line wrapping (canvas measureText)
+    useActiveText, useSessionRecorder, useAnalytics, useCustomTexts, useCustomTextForm,
+    useWeakKeysDrill, useDialog, useAutoDismiss, useApplyTheme
+  store/                 Zustand settings store (persisted)
+  lib/                   framework-free domain logic
+    typingEngine.ts      pure reducer (keystrokes, Thai mark-order tolerance, pagination)
+    blocks.ts, segment.ts  grapheme/word segmentation and static block building
+    stats.ts, analytics.ts, drill.ts, drillDictionary.ts, sampleTexts.ts, types.ts
+    db.ts                Dexie schema + models; customTexts.ts / sessions.ts: data operations
+  utils/                 generic helpers: format, random, dom
 ```
+
+Conventions: `lib/` never imports React or the store; components get data through hooks;
+TypeScript runs with `strict` + `noUncheckedIndexedAccess`; oxlint forbids `any`, non-null
+assertions, `console` (except `console.error`) and enforces hook dependencies.
 
 ## Engine rules
 

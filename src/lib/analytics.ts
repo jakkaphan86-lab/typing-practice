@@ -1,4 +1,4 @@
-import type { TypingHistoryEntry } from './db'
+import type { ErrorLogEntry, TypingHistoryEntry } from './db'
 
 /* ------------------------------------------------------------------ */
 /* Missed characters                                                   */
@@ -19,7 +19,7 @@ export interface MissedChar {
  * be aggregated with `Collection.each()` without loading it into an array.
  */
 export class MissTally {
-  private counts = new Map<string, { count: number; typed: Map<string, number> }>()
+  private readonly counts = new Map<string, { count: number; typed: Map<string, number> }>()
   total = 0
 
   add(expected: string, typed: string) {
@@ -39,14 +39,14 @@ export class MissTally {
       .sort(([a, x], [b, y]) => y.count - x.count || a.localeCompare(b))
       .slice(0, limit)
       .map(([char, { count, typed }]) => {
-        const [typedAs] = [...typed.entries()].sort((x, y) => y[1] - x[1])[0]
-        return { char, count, share: count / this.total, typedAs }
+        const mostTyped = [...typed.entries()].sort((x, y) => y[1] - x[1])[0]
+        return { char, count, share: count / this.total, typedAs: mostTyped?.[0] ?? null }
       })
   }
 }
 
 export function rankMissedChars(
-  errors: Iterable<{ expectedChar: string; typedChar: string }>,
+  errors: Iterable<Pick<ErrorLogEntry, 'expectedChar' | 'typedChar'>>,
   limit: number,
 ): MissedChar[] {
   const tally = new MissTally()
@@ -68,7 +68,7 @@ export interface HistorySummary {
   totalTimeMs: number
 }
 
-export function summarizeHistory(rows: TypingHistoryEntry[]): HistorySummary | null {
+export function summarizeHistory(rows: readonly TypingHistoryEntry[]): HistorySummary | null {
   if (rows.length === 0) return null
   let wpm = 0
   let accuracy = 0
@@ -78,7 +78,7 @@ export function summarizeHistory(rows: TypingHistoryEntry[]): HistorySummary | n
     wpm += r.wpm
     accuracy += r.accuracy
     best = Math.max(best, r.wpm)
-    time += r.durationMs ?? 0
+    time += r.durationMs
   }
   return {
     sessions: rows.length,
@@ -130,11 +130,4 @@ export function describeChar(ch: string): CharDisplay {
   const name = THAI_MARK_NAMES[ch] ?? null
   if (name || /^\p{M}$/u.test(ch)) return { glyph: `◌${ch}`, name }
   return { glyph: ch, name: null }
-}
-
-export function formatTotalTime(ms: number): string {
-  const minutes = Math.round(ms / 60_000)
-  if (minutes < 1) return `${Math.round(ms / 1000)}s`
-  if (minutes < 60) return `${minutes}m`
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }

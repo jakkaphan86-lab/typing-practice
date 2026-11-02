@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { Language } from '../lib/types'
 
 export type Theme = 'light' | 'dark'
-export type Language = 'th' | 'en'
 export type DrawerTab = 'texts' | 'stats'
 
-interface SettingsState {
+export interface SettingsState {
   theme: Theme
   showStats: boolean
   /** Language of the built-in sample used when no custom text is active. */
