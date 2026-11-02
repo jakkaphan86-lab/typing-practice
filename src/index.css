@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode, toggled from the settings store. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Sarabun', 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+  --animate-blink: blink 1s step-end infinite;
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+}
