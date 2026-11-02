@@ -2,7 +2,7 @@ import { describeChar } from '../../lib/analytics'
 
 interface Props {
   char: string
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
   tone?: 'neutral' | 'error'
 }
 
@@ -13,8 +13,8 @@ export function KeyCap({ char, size = 'md', tone = 'neutral' }: Props) {
     <kbd
       title={name ?? undefined}
       aria-label={name ?? char}
-      className={`inline-flex shrink-0 items-center justify-center rounded-lg border-b-2 font-sans leading-none ${
-        size === 'md' ? 'size-11 text-2xl' : 'size-8 text-lg'
+      className={`inline-flex shrink-0 items-center justify-center border-b-2 font-sans leading-none ${
+        size === 'md' ? 'size-11 rounded-lg text-2xl' : size === 'sm' ? 'size-8 rounded-lg text-lg' : 'size-6 rounded-md text-sm'
       } ${
         tone === 'error'
           ? 'border-red-200 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400'

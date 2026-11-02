@@ -18,6 +18,7 @@ src/
   hooks/useSessionRecorder.ts saves finished sessions to typingHistory + errorLogs
   hooks/useAnalytics.ts      live global stats + per-session most-missed characters
   lib/analytics.ts           aggregation (MissTally, summaries) + Thai mark display names
+  lib/drill.ts               adaptive drill generator (weak-key weighted, Thai + English dictionaries)
   lib/db.ts                  Dexie database 'TypingAppDB' + data helpers
   lib/segment.ts             grapheme & word segmentation (Intl.Segmenter, Thai-aware)
   lib/blocks.ts              passage → lines → static blocks (3 lines each)
@@ -25,7 +26,8 @@ src/
   store/useSettingsStore.ts  Zustand (persisted): theme, stats, language, activeTextId
   components/                Header, TypingArea, TextBlockView, StatsBar, ResultScreen, AppDrawer
   components/library/        CustomTextManager ("Texts" tab): form + list (select/edit/delete)
-  components/stats/          StatsDashboard ("My stats" tab), WpmProgressChart (lazy-loaded), KeyCap
+  components/stats/          StatsDashboard ("My stats" tab), WpmProgressChart (lazy-loaded),
+                             PracticeWeakKeysButton, KeyCap
   data/sampleTexts.ts        mock Thai / English passages
 ```
 
@@ -70,5 +72,19 @@ Database `TypingAppDB`, schema version 2:
   lazy-loaded so the typing page doesn't download Recharts.
 - Averages are per-session means. Thai tone marks and floating vowels are shown on a dotted circle
   (◌่) with their Thai name (ไม้เอก).
+
+## Adaptive drills
+
+**Practice weak keys** (bottom of *My stats*, disabled until there are error logs):
+
+1. `generateDrill(weakKeys, language)` (`src/lib/drill.ts`) builds a 25–30 word passage from a built-in
+   dictionary (~190 Thai / ~180 English words covering every Thai tone mark and floating vowel and a–z).
+   The top 3 weak keys are weighted 4 / 2 / 1 per occurrence, each appears in at least 3 words, ~80% of words
+   come from the weak-key pool, and repeated words are damped for variety. Punctuation and digits are
+   appended to words; English capitals capitalise matching words.
+2. The language follows the script of the top weak keys (ties → current language).
+3. The drill is saved to `customTexts` as **"Auto-Generated: Weak Keys Drill"** with tag `generated`.
+   Regenerating overwrites that row instead of adding duplicates.
+4. It becomes the `activeTextId`, the drawer closes, and the typing area is focused.
 
 Keys: `Esc` restart · `Ctrl/Alt + Backspace` delete word.

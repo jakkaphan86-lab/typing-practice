@@ -44,6 +44,8 @@ export default function WpmProgressChart({ data, average }: Props) {
   const c = PALETTE[theme]
   const byDate = new Map(data.map((d) => [d.session, d.timestamp]))
   const yTicks = niceTicks(Math.max(average, ...data.map((d) => d.wpm)))
+  // Fit the widest tick label (~7px per digit at 11px) so labels never clip.
+  const yAxisWidth = 14 + 7 * String(yTicks.at(-1)).length
 
   return (
     <div
@@ -52,7 +54,7 @@ export default function WpmProgressChart({ data, average }: Props) {
       className="h-44 w-full"
     >
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
           <CartesianGrid stroke={c.grid} strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey="session"
@@ -77,7 +79,7 @@ export default function WpmProgressChart({ data, average }: Props) {
             tick={{ fill: c.axis, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            width={44}
+            width={yAxisWidth}
           />
           <ReferenceLine y={average} stroke={c.avg} strokeDasharray="4 4" />
           <Tooltip

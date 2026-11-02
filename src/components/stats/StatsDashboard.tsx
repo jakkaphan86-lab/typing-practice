@@ -3,6 +3,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { PROGRESS_LIMIT, useGlobalStats } from '../../hooks/useAnalytics'
 import { describeChar, formatTotalTime } from '../../lib/analytics'
 import { KeyCap } from './KeyCap'
+import { PracticeWeakKeysButton } from './PracticeWeakKeysButton'
 
 // Recharts is large: load it only when the stats tab is opened.
 const WpmProgressChart = lazy(() => import('./WpmProgressChart'))
@@ -32,6 +33,9 @@ export function StatsDashboard() {
         <p className="max-w-60 text-sm text-slate-500 dark:text-slate-400">
           Finish a passage and your speed, accuracy and weakest keys will show up here.
         </p>
+        <div className="mt-6 w-full">
+          <PracticeWeakKeysButton weakKeys={[]} />
+        </div>
       </div>
     )
   }
@@ -122,6 +126,8 @@ export function StatsDashboard() {
           {summary.sessions} session{summary.sessions === 1 ? '' : 's'}
         </p>
       </section>
+
+      <PracticeWeakKeysButton weakKeys={weakestKeys.map((k) => k.char)} />
     </div>
   )
 }

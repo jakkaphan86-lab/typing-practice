@@ -103,6 +103,31 @@ export async function updateCustomText(id: number, input: NewCustomText): Promis
   await db.customTexts.update(id, { ...input, updatedAt: Date.now() })
 }
 
+export const GENERATED_TAG = 'generated'
+export const WEAK_KEYS_DRILL_TITLE = 'Auto-Generated: Weak Keys Drill'
+
+/**
+ * Save a generated weak-keys drill and return its id. The previous drill (if
+ * any) is overwritten rather than duplicated, so the library holds one
+ * up-to-date drill no matter how often the user regenerates it. Its typing
+ * history stays under the same id.
+ */
+export async function saveWeakKeysDrill(content: string, language: Language): Promise<number> {
+  return db.transaction('rw', db.customTexts, async () => {
+    const existing = await db.customTexts
+      .where('tags')
+      .equals(GENERATED_TAG)
+      .filter((t) => t.title === WEAK_KEYS_DRILL_TITLE)
+      .first()
+    const payload = { title: WEAK_KEYS_DRILL_TITLE, language, tags: [GENERATED_TAG], content }
+    if (existing) {
+      await updateCustomText(existing.id, payload)
+      return existing.id
+    }
+    return addCustomText(payload)
+  })
+}
+
 /**
  * Delete a custom text. Its `typingHistory` and `errorLogs` rows are kept on
  * purpose: they feed global statistics even after the source text is gone.
