@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Header } from './components/Header'
-import { CustomTextManager } from './components/library/CustomTextManager'
+import { AppDrawer } from './components/AppDrawer'
 import { TypingArea } from './components/TypingArea'
 import { useSettingsStore } from './store/useSettingsStore'
 
@@ -26,7 +26,7 @@ export default function App() {
         <kbd className="font-sans">backspace</kbd> delete word
       </footer>
 
-      <CustomTextManager />
+      <AppDrawer />
     </div>
   )
 }

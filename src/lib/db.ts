@@ -34,6 +34,8 @@ export interface TypingHistoryEntry {
 export interface ErrorLogEntry {
   id: number
   textId: TextId
+  /** The `typingHistory` id of the session this error happened in (v2+; absent on older rows). */
+  sessionId?: number
   expectedChar: string
   typedChar: string
   timestamp: number
@@ -53,6 +55,10 @@ class TypingAppDB extends Dexie {
       customTexts: '++id, title, language, *tags, createdAt',
       typingHistory: '++id, textId, wpm, accuracy, timestamp',
       errorLogs: '++id, textId, expectedChar, typedChar, timestamp',
+    })
+    // v2: link each error to its session so the result screen can query it.
+    this.version(2).stores({
+      errorLogs: '++id, textId, sessionId, expectedChar, typedChar, timestamp',
     })
   }
 }
@@ -119,20 +125,25 @@ export interface SessionRecord {
   errors: Array<{ expected: string; typed: string; timestamp: number }>
 }
 
-/** Persist a finished session: one history row + one row per wrong keystroke. */
-export async function recordSession(session: SessionRecord): Promise<void> {
+/**
+ * Persist a finished session: one history row + one row per wrong keystroke.
+ * Returns the history id, which doubles as the session id in `errorLogs`.
+ */
+export async function recordSession(session: SessionRecord): Promise<number> {
   const { textId, errors, ...stats } = session
-  await db.transaction('rw', [db.typingHistory, db.errorLogs], async () => {
-    await db.typingHistory.add({ textId, ...stats })
+  return db.transaction('rw', [db.typingHistory, db.errorLogs], async () => {
+    const sessionId = await db.typingHistory.add({ textId, ...stats })
     if (errors.length > 0) {
       await db.errorLogs.bulkAdd(
         errors.map((e) => ({
           textId,
+          sessionId,
           expectedChar: e.expected,
           typedChar: e.typed,
           timestamp: e.timestamp,
         })),
       )
     }
+    return sessionId
   })
 }

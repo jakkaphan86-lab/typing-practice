@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 
 export type Theme = 'light' | 'dark'
 export type Language = 'th' | 'en'
+export type DrawerTab = 'texts' | 'stats'
 
 interface SettingsState {
   theme: Theme
@@ -11,8 +12,8 @@ interface SettingsState {
   language: Language
   /** Selected `customTexts` id, or null → fall back to the built-in sample. */
   activeTextId: number | null
-  /** UI only (not persisted): the custom text manager drawer. */
-  isLibraryOpen: boolean
+  /** UI only (not persisted): open drawer tab, or null when closed. */
+  drawerTab: DrawerTab | null
 
   toggleTheme: () => void
   toggleStats: () => void
@@ -20,7 +21,8 @@ interface SettingsState {
   selectBuiltin: (language: Language) => void
   selectCustomText: (id: number) => void
   clearActiveText: () => void
-  setLibraryOpen: (open: boolean) => void
+  openDrawer: (tab: DrawerTab) => void
+  closeDrawer: () => void
 }
 
 const systemTheme = (): Theme =>
@@ -35,14 +37,15 @@ export const useSettingsStore = create<SettingsState>()(
       showStats: true,
       language: 'th',
       activeTextId: null,
-      isLibraryOpen: false,
+      drawerTab: null,
 
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
       toggleStats: () => set((s) => ({ showStats: !s.showStats })),
       selectBuiltin: (language) => set({ language, activeTextId: null }),
       selectCustomText: (id) => set({ activeTextId: id }),
       clearActiveText: () => set({ activeTextId: null }),
-      setLibraryOpen: (isLibraryOpen) => set({ isLibraryOpen }),
+      openDrawer: (drawerTab) => set({ drawerTab }),
+      closeDrawer: () => set({ drawerTab: null }),
     }),
     {
       name: 'typing-practice-settings',

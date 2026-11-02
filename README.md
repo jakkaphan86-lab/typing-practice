@@ -1,7 +1,7 @@
 # Typing Practice
 
 Distraction-free typing practice for **Thai** and **English**.
-React 19 · TypeScript · Vite · Tailwind CSS v4 · Zustand · Dexie (IndexedDB) · Lucide React.
+React 19 · TypeScript · Vite · Tailwind CSS v4 · Zustand · Dexie (IndexedDB) · Recharts · Lucide React.
 
 ```bash
 npm install
@@ -16,13 +16,16 @@ src/
   hooks/useLineMetrics.ts    measures container width + font for exact line wrapping
   hooks/useActiveText.ts     selected custom text (live from Dexie) or built-in fallback
   hooks/useSessionRecorder.ts saves finished sessions to typingHistory + errorLogs
+  hooks/useAnalytics.ts      live global stats + per-session most-missed characters
+  lib/analytics.ts           aggregation (MissTally, summaries) + Thai mark display names
   lib/db.ts                  Dexie database 'TypingAppDB' + data helpers
   lib/segment.ts             grapheme & word segmentation (Intl.Segmenter, Thai-aware)
   lib/blocks.ts              passage → lines → static blocks (3 lines each)
   lib/stats.ts               WPM / accuracy math
   store/useSettingsStore.ts  Zustand (persisted): theme, stats, language, activeTextId
-  components/                Header, TypingArea, TextBlockView, StatsBar, ResultCard
-  components/library/        CustomTextManager drawer: form + list (select/edit/delete)
+  components/                Header, TypingArea, TextBlockView, StatsBar, ResultScreen, AppDrawer
+  components/library/        CustomTextManager ("Texts" tab): form + list (select/edit/delete)
+  components/stats/          StatsDashboard ("My stats" tab), WpmProgressChart (lazy-loaded), KeyCap
   data/sampleTexts.ts        mock Thai / English passages
 ```
 
@@ -42,18 +45,30 @@ src/
 
 ## Local storage (IndexedDB via Dexie)
 
-Database `TypingAppDB`, version 1:
+Database `TypingAppDB`, schema version 2:
 
 | Table | Indexes | Notes |
 | --- | --- | --- |
 | `customTexts` | `++id, title, language, *tags, createdAt` | also stores `content`, `updatedAt`; `*tags` is multi-entry |
 | `typingHistory` | `++id, textId, wpm, accuracy, timestamp` | also `rawWpm`, `durationMs` |
-| `errorLogs` | `++id, textId, expectedChar, typedChar, timestamp` | one row per wrong keystroke |
+| `errorLogs` | `++id, textId, sessionId, expectedChar, typedChar, timestamp` | one row per wrong keystroke; `sessionId` = `typingHistory` id (added in v2) |
 
 - `textId` is a `customTexts` id, or `builtin:th` / `builtin:en` for the built-in samples.
 - Only **finished** sessions are recorded. Deleting a custom text keeps its history and error logs
   (they still count towards global statistics).
 - When no custom text is selected, the selected text was deleted, or IndexedDB is unavailable,
   the built-in sample for the current language is used.
+
+## Analytics
+
+- **Result screen:** WPM, accuracy and time, plus the session's **top 3 most-missed characters**,
+  read from `errorLogs` by `sessionId`.
+- **My stats** (drawer tab): average WPM (with best), average accuracy, session count, and the
+  **5 weakest keys** across all of `errorLogs`, with how often each was missed and what was typed instead.
+- **WPM progress chart** (Recharts line chart, last 30 sessions): X = session, labelled by date;
+  Y = WPM; dashed line = overall average. Colours follow the light/dark theme; the chart code is
+  lazy-loaded so the typing page doesn't download Recharts.
+- Averages are per-session means. Thai tone marks and floating vowels are shown on a dotted circle
+  (◌่) with their Thai name (ไม้เอก).
 
 Keys: `Esc` restart · `Ctrl/Alt + Backspace` delete word.

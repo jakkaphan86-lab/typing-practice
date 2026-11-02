@@ -1,4 +1,4 @@
-import { Gauge, Keyboard, Library, Moon, Sun } from 'lucide-react'
+import { ChartColumn, Gauge, Keyboard, Library, Moon, Sun } from 'lucide-react'
 import type { MouseEvent, ReactNode } from 'react'
 import { SAMPLE_TEXTS } from '../data/sampleTexts'
 import { useSettingsStore, type Language } from '../store/useSettingsStore'
@@ -18,7 +18,7 @@ export function Header() {
     toggleTheme,
     toggleStats,
     selectBuiltin,
-    setLibraryOpen,
+    openDrawer,
   } = useSettingsStore()
   // The switch picks a built-in sample; with a custom text active, neither is checked.
   const builtinActive = activeTextId === null
@@ -27,7 +27,7 @@ export function Header() {
     <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-6 sm:px-6">
       <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
         <Keyboard className="size-5 text-amber-600 dark:text-amber-400" aria-hidden />
-        <span>Typing Practice</span>
+        <span className="hidden sm:inline">Typing Practice</span>
       </div>
 
       <nav className="flex items-center gap-1">
@@ -52,8 +52,12 @@ export function Header() {
           ))}
         </div>
 
-        <IconButton label="Text library" onClick={() => setLibraryOpen(true)}>
+        <IconButton label="Text library" onClick={() => openDrawer('texts')}>
           <Library className="size-5" aria-hidden />
+        </IconButton>
+
+        <IconButton label="My stats" onClick={() => openDrawer('stats')}>
+          <ChartColumn className="size-5" aria-hidden />
         </IconButton>
 
         <IconButton

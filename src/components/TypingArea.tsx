@@ -5,7 +5,7 @@ import { useLineMetrics } from '../hooks/useLineMetrics'
 import { useSessionRecorder } from '../hooks/useSessionRecorder'
 import { useTypingEngine } from '../hooks/useTypingEngine'
 import { useSettingsStore } from '../store/useSettingsStore'
-import { ResultCard } from './ResultCard'
+import { ResultScreen } from './ResultScreen'
 import { StatsBar } from './StatsBar'
 import { TextBlockView } from './TextBlockView'
 
@@ -13,8 +13,8 @@ const LINES_PER_BLOCK = 3
 
 export function TypingArea() {
   const showStats = useSettingsStore((s) => s.showStats)
-  const isLibraryOpen = useSettingsStore((s) => s.isLibraryOpen)
-  const setLibraryOpen = useSettingsStore((s) => s.setLibraryOpen)
+  const isDrawerOpen = useSettingsStore((s) => s.drawerTab !== null)
+  const openDrawer = useSettingsStore((s) => s.openDrawer)
   // Selected custom text from Dexie, or the built-in sample as a fallback.
   const activeText = useActiveText()
   const language = activeText?.language ?? 'en'
@@ -28,18 +28,18 @@ export function TypingArea() {
     maxLineWidth: metrics?.maxLineWidth ?? 40,
     measure: metrics?.measure,
     // Let the library drawer's form fields receive keystrokes while it's open.
-    captureGlobalKeys: !isLibraryOpen,
+    captureGlobalKeys: !isDrawerOpen,
   })
   const { inputRef } = engine
-  const saveStatus = useSessionRecorder(engine, activeText?.id ?? null)
+  const save = useSessionRecorder(engine, activeText?.id ?? null)
 
   const [focused, setFocused] = useState(false)
 
   // Focus on mount, when the passage changes, and when the library closes.
   const textKey = activeText?.id
   useEffect(() => {
-    if (!isLibraryOpen) inputRef.current?.focus()
-  }, [textKey, isLibraryOpen, inputRef])
+    if (!isDrawerOpen) inputRef.current?.focus()
+  }, [textKey, isDrawerOpen, inputRef])
 
   return (
     <section className="w-full max-w-3xl" aria-label="Typing practice">
@@ -65,7 +65,9 @@ export function TypingArea() {
         className="pointer-events-none absolute size-px opacity-0"
       />
 
-      {engine.status === 'finished' && <ResultCard stats={engine.stats} saveStatus={saveStatus} onRestart={engine.reset} />}
+      {engine.status === 'finished' && (
+        <ResultScreen stats={engine.stats} save={save} errors={engine.errors} onRestart={engine.reset} />
+      )}
 
       {/* Always mounted (it is the measured element); hidden once finished. */}
       <div
@@ -99,7 +101,7 @@ export function TypingArea() {
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setLibraryOpen(true)}
+          onClick={() => openDrawer('texts')}
           title="Choose another text"
           className="mx-auto mt-10 flex max-w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800/60 dark:hover:text-slate-300"
         >
