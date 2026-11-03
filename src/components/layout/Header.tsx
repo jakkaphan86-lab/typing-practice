@@ -5,6 +5,7 @@ import { SAMPLE_TEXTS } from '../../lib/sampleTexts'
 import { LANGUAGES, type Language } from '../../lib/types'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import { IconButton } from '../ui/IconButton'
+import { OfflineIndicator } from './OfflineIndicator'
 import { SegmentedControl, type SegmentOption } from '../ui/SegmentedControl'
 
 const SAMPLE_OPTIONS: readonly SegmentOption<Language>[] = LANGUAGES.map((lang) => ({
@@ -37,6 +38,7 @@ export function Header() {
       <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
         <Keyboard className="size-5 text-amber-600 dark:text-amber-400" aria-hidden />
         <span className="hidden sm:inline">Typing Practice</span>
+        <OfflineIndicator />
       </div>
 
       <nav className="flex items-center gap-1">

@@ -48,6 +48,9 @@ export interface TypingEngine {
   reset: () => void
 }
 
+/** The text a set of blocks spells out (layout-independent). */
+const passageOf = (blocks: readonly TextBlock[]) => blocks.map((b) => b.chars.join('')).join('')
+
 /**
  * React binding for the pure engine in `lib/typingEngine.ts`. Knows nothing
  * about DOM input, timers or audio — see `useTypingInput`, `useLiveStats` and
@@ -63,8 +66,16 @@ export function useTypingEngine(text: string, options: TypingEngineOptions): Typ
 
   const [state, dispatch] = useReducer(engineReducer, blocks, createInitialState)
 
-  // New text/layout → restart (state update during render, no stale frame).
-  if (state.blocks !== blocks) dispatch({ type: 'reset', blocks })
+  // A new passage restarts at once. A layout-only change (web fonts finished
+  // loading, window resized) is applied only while idle — re-wrapping
+  // mid-session would wipe the user's progress; it takes effect on the next
+  // restart instead (`reset` always uses the latest blocks).
+  // State update during render: no stale frame.
+  const nextPassage = useMemo(() => passageOf(blocks), [blocks])
+  const currentPassage = useMemo(() => passageOf(state.blocks), [state.blocks])
+  if (state.blocks !== blocks && (getStatus(state) === 'idle' || nextPassage !== currentPassage)) {
+    dispatch({ type: 'reset', blocks })
+  }
 
   // Latest state, readable from event handlers. Synced on every commit, and
   // advanced optimistically in `apply` so back-to-back events within one frame

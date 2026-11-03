@@ -1,6 +1,7 @@
 import { AppDrawer } from './components/drawer/AppDrawer'
 import { Header } from './components/layout/Header'
 import { KeyboardHints } from './components/layout/KeyboardHints'
+import { ReloadPrompt } from './components/layout/ReloadPrompt'
 import { TypingArea } from './components/typing/TypingArea'
 import { useApplyTheme } from './hooks/useApplyTheme'
 
@@ -15,6 +16,7 @@ export default function App() {
       </main>
       <KeyboardHints />
       <AppDrawer />
+      <ReloadPrompt />
     </div>
   )
 }
