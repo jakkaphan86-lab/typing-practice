@@ -1,0 +1,46 @@
+# Builds the app and deploys it to the live Firebase Hosting channel on every push to master.
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - master
+
+# Least privilege for GITHUB_TOKEN: read the code, and let the deploy action report its result.
+permissions:
+  contents: read
+  checks: write
+
+# Never run two deploys at once; a newer push waits for the running deploy to finish.
+concurrency:
+  group: firebase-hosting-live
+  cancel-in-progress: false
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (LTS)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Type-checks (tsc -b) and builds the PWA into dist/.
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          projectId: "typing-practice-app-85c58"
+          channelId: "live"
